@@ -86,6 +86,19 @@ kubectl apply -f k8s/apirule.yaml
 kubectl get apirule service-binding-preview -o jsonpath='{.spec.host}'
 ```
 
+### Fix Istio Sidecar Injection
+
+If you encounter "Pod does not have an injected istio sidecar" error:
+
+```bash
+# Quick fix script
+./k8s/fix-istio-sidecar.sh
+
+# Or manually enable Istio injection
+kubectl label namespace default istio-injection=enabled --overwrite
+kubectl delete pod -l app=service-binding-preview
+```
+
 For detailed Kyma deployment instructions, service binding configuration, and troubleshooting, see [KYMA_DEPLOYMENT.md](KYMA_DEPLOYMENT.md).
 
 ### Kyma Features

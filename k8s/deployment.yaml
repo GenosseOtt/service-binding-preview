@@ -15,6 +15,8 @@ spec:
       labels:
         app: service-binding-preview
         version: v1
+      annotations:
+        sidecar.istio.io/inject: "true"
     spec:
       containers:
       - name: app

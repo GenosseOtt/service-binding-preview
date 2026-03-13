@@ -25,20 +25,42 @@ This guide explains how to deploy the Service Binding Preview application to Kym
    image: ghcr.io/YOUR_USERNAME/service-binding-preview:latest
    ```
 
-2. **Deploy to Kyma**:
+2. **Enable Istio sidecar injection** (choose one method):
+
+   **Option A: Enable at namespace level** (Recommended)
+   ```bash
+   kubectl label namespace default istio-injection=enabled
+   ```
+
+   **Option B: Use the provided namespace manifest**
+   ```bash
+   kubectl apply -f k8s/namespace.yaml
+   ```
+
+   **Option C: Already configured in deployment**
+   The deployment already has the annotation:
+   ```yaml
+   annotations:
+     sidecar.istio.io/inject: "true"
+   ```
+
+3. **Deploy to Kyma**:
    ```bash
    kubectl apply -f k8s/deployment.yaml
    kubectl apply -f k8s/apirule.yaml
    ```
 
-3. **Verify deployment**:
+4. **Verify deployment**:
    ```bash
    kubectl get pods -l app=service-binding-preview
    kubectl get svc service-binding-preview
    kubectl get apirule service-binding-preview
+
+   # Check if Istio sidecar is injected (should show 2/2 containers)
+   kubectl get pods -l app=service-binding-preview -o wide
    ```
 
-4. **Get the URL**:
+5. **Get the URL**:
    ```bash
    kubectl get apirule service-binding-preview -o jsonpath='{.spec.host}'
    ```
@@ -72,65 +94,6 @@ accessStrategies:
   - handler: oauth2_introspection
     config:
       required_scope: ["read", "write"]
-```
-
-## Service Binding
-
-### Using Kyma Service Catalog
-
-1. **Create a Service Instance**:
-   ```bash
-   kubectl apply -f - <<EOF
-   apiVersion: servicecatalog.kyma-project.io/v1alpha1
-   kind: ServiceInstance
-   metadata:
-     name: postgres-instance
-   spec:
-     serviceClassExternalName: postgresql
-     servicePlanExternalName: small
-   EOF
-   ```
-
-2. **Create a Service Binding**:
-   ```bash
-   kubectl apply -f - <<EOF
-   apiVersion: servicecatalog.kyma-project.io/v1alpha1
-   kind: ServiceBinding
-   metadata:
-     name: service-binding-preview-db
-   spec:
-     instanceRef:
-       name: postgres-instance
-     secretName: db-credentials
-   EOF
-   ```
-
-3. **Update Deployment to use binding**:
-   ```yaml
-   env:
-   - name: DATABASE_URL
-     valueFrom:
-       secretKeyRef:
-         name: db-credentials
-         key: uri
-   ```
-
-### Using Service Binding Specification
-
-```yaml
-apiVersion: servicebinding.io/v1alpha3
-kind: ServiceBinding
-metadata:
-  name: app-db-binding
-spec:
-  service:
-    apiVersion: v1
-    kind: Secret
-    name: database-credentials
-  workload:
-    apiVersion: apps/v1
-    kind: Deployment
-    name: service-binding-preview
 ```
 
 ## Environment Variables
@@ -204,93 +167,80 @@ metadata:
 
 ## Troubleshooting
 
-### Check logs
+### 1. Pod does not have an injected Istio sidecar
+
+**Symptoms**:
+- Pod shows `1/1` containers instead of `2/2`
+- APIRule doesn't route traffic correctly
+- Error: "Pod does not have an injected istio sidecar"
+
+**Root Cause**: Istio sidecar injection is not enabled for the namespace or pod
+
+**Solutions**:
+
+**Option A: Enable at namespace level** (Recommended - affects all pods)
 ```bash
-kubectl logs -l app=service-binding-preview -f
+# Check current namespace labels
+kubectl get namespace default --show-labels
+
+# Enable Istio injection for the namespace
+kubectl label namespace default istio-injection=enabled --overwrite
+
+# Delete existing pods to trigger re-creation with sidecar
+kubectl delete pod -l app=service-binding-preview
+
+# Wait for pod to be recreated
+kubectl wait --for=condition=ready pod -l app=service-binding-preview --timeout=60s
+
+# Verify sidecar is injected (should show 2/2 READY)
+kubectl get pods -l app=service-binding-preview
 ```
 
-### Check API Gateway status
-```bash
-kubectl get virtualservice -n kyma-system
-kubectl describe apirule service-binding-preview
-```
-
-### Test connectivity
-```bash
-# Port-forward to test locally
-kubectl port-forward svc/service-binding-preview 8080:80
-
-# Test endpoints
-curl http://localhost:8080/
-curl http://localhost:8080/health
-curl http://localhost:8080/healthz
-curl http://localhost:8080/readyz
-```
-
-### Common Issues
-
-1. **ImagePullBackOff**: Ensure GHCR image is accessible
-   ```bash
-   kubectl create secret docker-registry ghcr-secret \
-     --docker-server=ghcr.io \
-     --docker-username=YOUR_USERNAME \
-     --docker-password=YOUR_PAT
-   ```
-
-2. **APIRule not working**: Check Istio/API Gateway status
-   ```bash
-   kubectl get pods -n kyma-system | grep gateway
-   ```
-
-3. **Service Binding not injecting**: Verify ServiceBinding status
-   ```bash
-   kubectl get servicebinding
-   kubectl describe servicebinding service-binding-preview-db
-   ```
-
-## Scaling
-
-Scale the deployment:
-
-```bash
-kubectl scale deployment service-binding-preview --replicas=3
-```
-
-Or use HorizontalPodAutoscaler:
-
+**Option B: Use pod annotation** (Already configured in deployment.yaml)
 ```yaml
-apiVersion: autoscaling/v2
-kind: HorizontalPodAutoscaler
-metadata:
-  name: service-binding-preview-hpa
-spec:
-  scaleTargetRef:
-    apiVersion: apps/v1
-    kind: Deployment
-    name: service-binding-preview
-  minReplicas: 2
-  maxReplicas: 10
-  metrics:
-  - type: Resource
-    resource:
-      name: cpu
-      target:
-        type: Utilization
-        averageUtilization: 70
+template:
+  metadata:
+    annotations:
+      sidecar.istio.io/inject: "true"
 ```
 
-## Cleanup
-
-Remove all resources:
-
+**Option C: Apply namespace manifest**
 ```bash
-kubectl delete -f k8s/
+kubectl apply -f k8s/namespace.yaml
+kubectl delete pod -l app=service-binding-preview
 ```
 
-## Next Steps
+**Verification Steps**:
 
-- Configure authentication in APIRule
-- Set up service bindings for databases
-- Add monitoring and alerting
-- Configure rate limiting
-- Set up CORS policies
+1. Check if Istio injection is enabled:
+```bash
+# Check namespace label
+kubectl get namespace default --show-labels | grep istio-injection
+
+# Check pod annotation
+kubectl get deployment service-binding-preview -o yaml | grep "sidecar.istio.io/inject"
+```
+
+2. Verify Istio components are running:
+```bash
+kubectl get pods -n istio-system
+# Should see istiod pod running
+```
+
+3. Check mutating webhook:
+```bash
+kubectl get mutatingwebhookconfigurations | grep istio-sidecar-injector
+```
+
+4. Inspect pod containers:
+```bash
+kubectl get pods -l app=service-binding-preview -o jsonpath='{.items[0].spec.containers[*].name}'
+# Should output: app istio-proxy
+```
+
+5. Check pod events for injection issues:
+```bash
+kubectl describe pod -l app=service-binding-preview | grep -A 10 Events
+```
+
+### 2. ImagePullBackOff
