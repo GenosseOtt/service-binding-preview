@@ -1,0 +1,20 @@
+{
+  "name": "service-binding-preview",
+  "version": "1.0.0",
+  "description": "A simple hello world app with environment variable display",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "keywords": [
+    "service-binding",
+    "environment-variables",
+    "docker"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "dotenv": "^16.4.5"
+  }
+}
