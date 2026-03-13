@@ -10,6 +10,8 @@ A simple Node.js application that displays environment variables in an elegant w
 - 🚀 GitHub Actions CI/CD pipeline
 - 📊 Health check endpoint
 - 🔒 Secure handling of sensitive data
+- ☸️ Kyma-ready with API Gateway integration
+- 🔗 Service binding support
 
 ## Quick Start
 
@@ -67,6 +69,34 @@ Or use Docker Compose:
 docker-compose up
 ```
 
+## Kyma Deployment
+
+This application is ready for deployment to Kyma with API Gateway integration.
+
+### Quick Deploy to Kyma
+
+```bash
+# Deploy the application
+kubectl apply -f k8s/deployment.yaml
+
+# Expose via API Gateway
+kubectl apply -f k8s/apirule.yaml
+
+# Get the URL
+kubectl get apirule service-binding-preview -o jsonpath='{.spec.host}'
+```
+
+For detailed Kyma deployment instructions, service binding configuration, and troubleshooting, see [KYMA_DEPLOYMENT.md](KYMA_DEPLOYMENT.md).
+
+### Kyma Features
+
+- ✅ Health probes (`/healthz`, `/readyz`)
+- ✅ Non-root container user
+- ✅ Resource limits and requests
+- ✅ API Gateway integration
+- ✅ Service binding ready
+- ✅ Security context configured
+
 ## Environment Variables
 
 | Variable | Description | Default |
@@ -83,7 +113,9 @@ See [.env.example](.env.example) for a complete template.
 ## API Endpoints
 
 - `GET /` - Main web interface displaying environment variables
-- `GET /health` - Health check endpoint (returns JSON)
+- `GET /health` - Health check endpoint (returns JSON with detailed status)
+- `GET /healthz` - Kubernetes liveness probe endpoint
+- `GET /readyz` - Kubernetes readiness probe endpoint
 
 ## GitHub Actions & GHCR
 
@@ -125,6 +157,10 @@ This project includes a GitHub Actions workflow that automatically builds and pu
 ├── .github/
 │   └── workflows/
 │       └── docker-build.yml   # CI/CD pipeline
+├── k8s/
+│   ├── deployment.yaml        # Kubernetes deployment
+│   ├── apirule.yaml          # Kyma API Gateway rule
+│   └── servicebinding.yaml   # Service binding example
 ├── server.js                  # Main application
 ├── package.json              # Dependencies
 ├── Dockerfile                # Container image
@@ -132,6 +168,7 @@ This project includes a GitHub Actions workflow that automatically builds and pu
 ├── .env                     # Local environment (gitignored)
 ├── .env.example             # Environment template
 ├── .gitignore              # Git ignore rules
+├── KYMA_DEPLOYMENT.md       # Kyma deployment guide
 └── README.md               # This file
 ```
 

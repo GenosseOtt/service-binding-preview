@@ -1,0 +1,34 @@
+# Example ServiceBinding for Kyma
+# This demonstrates how to bind a service instance to the application
+# Uncomment and modify based on your actual service instance
+
+# apiVersion: servicecatalog.kyma-project.io/v1alpha1
+# kind: ServiceBinding
+# metadata:
+#   name: service-binding-preview-binding
+#   labels:
+#     app: service-binding-preview
+# spec:
+#   instanceRef:
+#     name: my-service-instance
+#   parameters:
+#     # Optional parameters for the binding
+#   secretName: service-binding-preview-credentials
+
+---
+# Alternative: Using Kubernetes Service Binding Specification
+# For more modern service binding approach
+
+# apiVersion: servicebinding.io/v1alpha3
+# kind: ServiceBinding
+# metadata:
+#   name: service-binding-preview-binding
+# spec:
+#   service:
+#     apiVersion: v1
+#     kind: Secret
+#     name: database-credentials
+#   workload:
+#     apiVersion: apps/v1
+#     kind: Deployment
+#     name: service-binding-preview

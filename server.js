@@ -163,6 +163,18 @@ const server = http.createServer((req, res) => {
       environment: ENVIRONMENT,
       version: VERSION
     }));
+  } else if (req.url === '/healthz') {
+    // Kubernetes/Kyma standard health check endpoint
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({
+      status: 'ok'
+    }));
+  } else if (req.url === '/readyz') {
+    // Kubernetes/Kyma readiness probe endpoint
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({
+      status: 'ready'
+    }));
   } else {
     res.writeHead(404, { 'Content-Type': 'text/plain' });
     res.end('Not Found');
